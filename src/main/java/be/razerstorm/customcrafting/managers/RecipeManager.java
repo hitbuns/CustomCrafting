@@ -2,13 +2,14 @@ package be.razerstorm.customcrafting.managers;
 
 import be.razerstorm.customcrafting.CustomCrafting;
 import be.razerstorm.customcrafting.enums.RecipeType;
+import be.razerstorm.customcrafting.events.PushRecipeToServerEvent;
+import be.razerstorm.customcrafting.events.RecipeRemoveEvent;
 import be.razerstorm.customcrafting.objects.RecipeInfo;
+import be.razerstorm.customcrafting.utils.BukkitEventCaller;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Server;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.inventory.FurnaceRecipe;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.RecipeChoice;
-import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.inventory.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -121,7 +122,14 @@ public class RecipeManager {
         customCrafting.saveConfig();
         CustomCrafting.getInstance().reloadConfig();
 
-        CustomCrafting.getInstance().getServer().removeRecipe(new NamespacedKey(customCrafting, recipeName));
+        NamespacedKey namespacedKey = new NamespacedKey(customCrafting, recipeName);
+        Server server = CustomCrafting.getInstance().getServer();
+        Recipe recipe = server.getRecipe(namespacedKey);
+
+        if (recipe != null) BukkitEventCaller.callEvent(new RecipeRemoveEvent(namespacedKey,
+                recipe));
+
+        server.removeRecipe(namespacedKey);
     }
 
     public void editRecipe(String recipeName, ItemStack output, HashMap<Character, ItemStack> ingredients, String... shape) {
@@ -207,17 +215,22 @@ public class RecipeManager {
 
         customCrafting.getServer().addRecipe(recipe);
 
+        BukkitEventCaller.callEvent(new PushRecipeToServerEvent(recipeKey,recipe));
+
     }
 
     public void pushToServerRecipes(ItemStack output, ItemStack ingredient, NamespacedKey recipeKey, int experience, int cookingTime) {
         CustomCrafting customCrafting = CustomCrafting.getInstance();
 
-        customCrafting.getServer().addRecipe(
-                new FurnaceRecipe(recipeKey,
-                        output,
-                        new RecipeChoice.ExactChoice(ingredient),
-                        experience, cookingTime
-                ));
+        FurnaceRecipe furnaceRecipe = new FurnaceRecipe(recipeKey,
+                output,
+                new RecipeChoice.ExactChoice(ingredient),
+                experience, cookingTime
+        );
+
+        BukkitEventCaller.callEvent(new PushRecipeToServerEvent(recipeKey,furnaceRecipe));
+
+        customCrafting.getServer().addRecipe(furnaceRecipe);
     }
 
     public ArrayList<String> getRecipes() {
